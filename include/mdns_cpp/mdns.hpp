@@ -1,6 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
+#include <set>
 #include <string>
 #include <thread>
 
@@ -9,6 +11,26 @@
 struct sockaddr;
 
 namespace mdns_cpp {
+
+struct DeviceInfo {
+  std::string ip;
+  std::string hostName;
+  std::string mac;
+  std::string serviceName;
+
+  bool operator<(const DeviceInfo &other) const { return (ip + mac) < (other.ip + other.mac); }
+
+  bool operator==(const DeviceInfo &other) const { return (ip == other.ip && mac == other.mac); }
+
+  // overload operator<< to print the device info
+  friend std::ostream &operator<<(std::ostream &os, DeviceInfo const &device) {
+    os << "[ip: " << device.ip << "] [hostName: " << device.hostName << "] [mac: " << device.mac
+       << "] [service name:" << device.serviceName << "]";
+    return os;
+  }
+};
+
+inline std::set<DeviceInfo> discoveryResults;
 
 class mDNS {
  public:
@@ -24,6 +46,16 @@ class mDNS {
   void setServiceTxtRecord(const std::string &text_record);
 
   void executeQuery(const std::string &service);
+
+  /**
+   * Queries the mDNS network for a list of devices.
+   *
+   * @param service The service to query.
+   *
+   * @returns A set of DeviceInfo objects.
+   */
+  std::set<DeviceInfo> executeQuery(std::string_view service);
+
   void executeDiscovery();
 
  private:
