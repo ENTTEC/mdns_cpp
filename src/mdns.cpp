@@ -313,7 +313,6 @@ static int query_callback(int sock, const struct sockaddr *from, size_t addrlen,
         if (service_infos.size() == 4 && host_ip == service_infos[2]) {
           res = {fromaddrstr, service_infos[3], service_infos[1], service_infos[0]};
         } else if (service_infos.size() != 4) {
-          service_infos = split_string(host_infos, std::regex{"."});
           res = {fromaddrstr, "", "", service_infos[0]};
         }
         if (!service_infos[0].empty()) {

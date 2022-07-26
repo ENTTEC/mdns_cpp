@@ -138,6 +138,7 @@ std::string popenCall(const std::string &command) {
 }
 
 std::string getHostInfo() {
+#ifndef _WIN32
   struct ifreq ifr;
   struct ifconf ifc;
   char buf[1024];
@@ -181,6 +182,9 @@ std::string getHostInfo() {
   sprintf(mac_address_string, "%02X:%02X:%02X:%02X:%02X:%02X", mac_address[0], mac_address[1], mac_address[2],
           mac_address[3], mac_address[4], mac_address[5]);
   return std::string(mac_address_string) + "@" + hostAddress + "@" + hostName;
+#else
+        return "";
+#endif
 }
 
 std::vector<std::string> split_string(const std::string &input_string, const std::regex &sep_regex) {

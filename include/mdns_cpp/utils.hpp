@@ -40,13 +40,12 @@ std::vector<std::string> split_string(const std::string &input_string, const std
  * @returns The output of the command.
  */
 std::string popenCall(const std::string &command);
-
+#endif
 /**
  * Returns the host infos of the machine.
  *
  * @returns macAddress+@+hostAddress+@+hostName
  */
 std::string getHostInfo();
-#endif
 
 }  // namespace mdns_cpp
