@@ -609,8 +609,9 @@ void mDNS::executeDiscovery() {
 
 std::set<DeviceInfo> mDNS::executeQuery(std::string_view service) {
   discoveryResults.clear();
-  int sockets[32];
-  int query_id[32];
+  const int kMaxSockets = 32;
+  int sockets[kMaxSockets];
+  int query_id[kMaxSockets];
   int num_sockets = openClientSockets(sockets, sizeof(sockets) / sizeof(sockets[0]), 0);
 
   if (num_sockets <= 0) {
@@ -618,17 +619,17 @@ std::set<DeviceInfo> mDNS::executeQuery(std::string_view service) {
     MDNS_LOG << msg << "\n";
     throw std::runtime_error(msg);
   }
-  MDNS_LOG << "Opened " << num_sockets << " socket" << (num_sockets ? "s" : "") << " for mDNS query\n";
+  MDNS_LOG << "Opened " << num_sockets << " socket" << "s" << " for mDNS query\n";
 
   size_t capacity = 2048;
-  void *buffer = malloc(capacity);
-  void *user_data = 0;
+  std::unique_ptr<void, decltype(&free)> buffer(malloc(capacity), free);
+  std::unique_ptr<void, decltype(&free)> user_data(nullptr, free);
   size_t records;
 
   MDNS_LOG << "Sending mDNS query: " << service << "\n";
   for (int isock = 0; isock < num_sockets; ++isock) {
     query_id[isock] = mdns_query_send(sockets[isock], MDNS_RECORDTYPE_PTR, service.data(), strlen(service.data()),
-                                      buffer, capacity, 0);
+                                      buffer.get(), capacity, 0);
     if (query_id[isock] < 0) {
       MDNS_LOG << "Failed to send mDNS query: " << strerror(errno) << "\n";
     }
@@ -656,19 +657,17 @@ std::set<DeviceInfo> mDNS::executeQuery(std::string_view service) {
     if (res > 0) {
       for (int isock = 0; isock < num_sockets; ++isock) {
         if (FD_ISSET(sockets[isock], &readfs)) {
-          records += mdns_query_recv(sockets[isock], buffer, capacity, query_callback, user_data, query_id[isock]);
+          records += mdns_query_recv(sockets[isock], buffer.get(), capacity, query_callback, user_data.get(), query_id[isock]);
         }
         FD_SET(sockets[isock], &readfs);
       }
     }
   } while (res > 0);
 
-  free(buffer);
-
   for (int isock = 0; isock < num_sockets; ++isock) {
     mdns_socket_close(sockets[isock]);
   }
-  MDNS_LOG << "Closed socket" << (num_sockets ? "s" : "") << "\n";
+  MDNS_LOG << "Closed socket" << "s" << "\n";
   return discoveryResults;
 }
 
