@@ -47,13 +47,6 @@ class mDNS {
 
   void executeQuery(const std::string &service);
 
-  /**
-   * Queries the mDNS network for a list of devices.
-   *
-   * @param service The service to query.
-   *
-   * @returns A set of DeviceInfo objects.
-   */
   std::set<DeviceInfo> executeQuery(std::string_view service);
 
   void executeDiscovery();
