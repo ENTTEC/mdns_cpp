@@ -269,27 +269,15 @@ static int query_callback(int sock, const struct sockaddr *from, size_t addrlen,
   const int str_capacity = 1000;
   char str_buffer[str_capacity] = {};
 
+  char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+  std::string host_ip;
+  if (getnameinfo(from, addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+    host_ip = std::string(hbuf);
+  }
+
   if (rtype == MDNS_RECORDTYPE_PTR) {
     mdns_string_t namestr =
         mdns_record_parse_ptr(data, size, record_offset, record_length, namebuffer, sizeof(namebuffer));
-
-    std::vector<std::string> service_infos;
-    char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-    if (getnameinfo(from, addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
-      std::string nameStr = std::string(namestr.str);
-      service_infos = split_host_info(nameStr);
-      DeviceInfo res;
-      auto host_ip = std::string(hbuf);
-      if (service_infos.size() == 4 && host_ip == service_infos[2]) {
-        res = {fromaddrstr, service_infos[3], service_infos[1], service_infos[0]};
-      } else if (service_infos.size() != 4) {
-        service_infos = split_host_info(nameStr, ".");
-        res = {fromaddrstr, "", "", service_infos[0]};
-      }
-      if (!service_infos[0].empty()) {
-        discoveryResults.insert(res);
-      }
-    }
 
     snprintf(str_buffer, str_capacity, "%s : %s %.*s PTR %.*s rclass 0x%x ttl %u length %d\n", fromaddrstr.data(),
              entrytype, MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(namestr), rclass, ttl, (int)record_length);
@@ -318,6 +306,19 @@ static int query_callback(int sock, const struct sockaddr *from, size_t addrlen,
         snprintf(str_buffer, str_capacity, "%s : %s %.*s TXT %.*s = %.*s\n", fromaddrstr.data(), entrytype,
                  MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(txtbuffer[itxt].key),
                  MDNS_STRING_FORMAT(txtbuffer[itxt].value));
+
+        auto host_infos = std::string(txtbuffer[itxt].value.str);
+        std::vector<std::string> service_infos = split_string(host_infos);
+        DeviceInfo res;
+        if (service_infos.size() == 4 && host_ip == service_infos[2]) {
+          res = {fromaddrstr, service_infos[3], service_infos[1], service_infos[0]};
+        } else if (service_infos.size() != 4) {
+          service_infos = split_string(host_infos, std::regex{"."});
+          res = {fromaddrstr, "", "", service_infos[0]};
+        }
+        if (!service_infos[0].empty()) {
+          discoveryResults.insert(res);
+        }
       } else {
         snprintf(str_buffer, str_capacity, "%s : %s %.*s TXT %.*s\n", fromaddrstr.data(), entrytype,
                  MDNS_STRING_FORMAT(entrystr), MDNS_STRING_FORMAT(txtbuffer[itxt].key));
@@ -355,12 +356,12 @@ int service_callback(int sock, const struct sockaddr *from, size_t addrlen, mdns
     MDNS_LOG << fromaddrstr << " : question PTR " << std::string(service.str, service.length) << "\n";
 
     const char dns_sd[] = "_services._dns-sd._udp.local.";
-    ServiceRecord *service_record = (ServiceRecord *)user_data;
+    auto *service_record = (const ServiceRecord *)user_data;
     const size_t service_length = strlen(service_record->service);
     char sendbuffer[256] = {0};
 
     auto all_infos = std::string(service_record->hostname) + "@" + hostInfo;
-    service_record->hostname = all_infos.c_str();
+    all_infos = "SplayInfos=" + all_infos;
 
     if ((service.length == (sizeof(dns_sd) - 1)) && (strncmp(service.str, dns_sd, sizeof(dns_sd) - 1) == 0)) {
       MDNS_LOG << "  --> answer " << service_record->service << " \n";
@@ -372,11 +373,13 @@ int service_callback(int sock, const struct sockaddr *from, size_t addrlen, mdns
       MDNS_LOG << "  --> answer " << service_record->hostname << "." << service_record->service << " port "
                << service_record->port << " (" << (unicast ? "unicast" : "multicast") << ")\n";
       if (!unicast) addrlen = 0;
-      char txt_record[] = "Splay=1";
+
+      /// set infos on the txt record
+      const char* txt_record = all_infos.c_str();
       mdns_query_answer(sock, from, addrlen, sendbuffer, sizeof(sendbuffer), query_id, service_record->service,
                         service_length, service_record->hostname, strlen(service_record->hostname),
                         service_record->address_ipv4, service_record->address_ipv6, (uint16_t)service_record->port,
-                        txt_record, sizeof(txt_record));
+                        txt_record, strlen(txt_record));
     }
   } else if (rtype == static_cast<uint16_t>(mdns_record_type::MDNS_RECORDTYPE_SRV)) {
     mdns_record_srv_t service =
