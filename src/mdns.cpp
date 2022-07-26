@@ -13,130 +13,16 @@
 #warning "Windows is not supported yet to send mac address"
 #else
 #include <ifaddrs.h>
-#include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <printf.h>
-#include <sys/ioctl.h>
-
 #include <array>
 #include <cstdio>
-#include <string>
-
-#endif
-#include <string.h>
+#endif // _WIN32
 
 namespace mdns_cpp {
 
-#ifdef _WIN32
-
-#else
-
-/**
- * Executes a command through the shell.
- *
- * @param command The command to execute.
- *
- * @returns The output of the command.
- */
-std::string popenCall(const std::string &command) {
-  std::array<char, 8192> buffer{};
-  std::string result;
-  FILE *pipe = popen(command.c_str(), "r");
-  if (pipe == nullptr) {
-    throw std::runtime_error("popen() failed!");
-  }
-  try {
-    std::size_t bytesRead{};
-    while ((bytesRead = std::fread(buffer.data(), sizeof(buffer.at(0)), sizeof(buffer), pipe)) != 0) {
-      result += std::string(buffer.data(), bytesRead);
-    }
-  } catch (...) {
-    pclose(pipe);
-    throw;
-  }
-  return result;
-}
-
-/**
- * Returns the host infos of the machine.
- *
- * @returns macAddress@hostAddress@hostName
- */
-std::string getHostInfo() {
-  struct ifreq ifr;
-  struct ifconf ifc;
-  char buf[1024];
-  int success = 0;
-
-  int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-  if (sock == -1) { /* handle error*/
-  };
-
-  ifc.ifc_len = sizeof(buf);
-  ifc.ifc_buf = buf;
-  if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) { /* handle error */
-  }
-  struct ifreq *it = ifc.ifc_req;
-  const struct ifreq *const end = it + (ifc.ifc_len / sizeof(struct ifreq));
-
-  std::string hostAddress;
-  std::string hostName = popenCall("hostname");
-  for (; it != end; ++it) {
-    auto address = it->ifr_addr;
-    char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-    getnameinfo(&address, sizeof(struct sockaddr), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST);
-    hostAddress = std::string(hbuf);
-    std::string interface_address = std::string(hbuf);
-    strcpy(ifr.ifr_name, it->ifr_name);
-    if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
-      if (!(ifr.ifr_flags & IFF_LOOPBACK)) {  // don't count loopback
-        if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
-          success = 1;
-          break;
-        }
-      }
-    } else { /* handle error */
-    }
-  }
-
-  unsigned char mac_address[6];
-
-  if (success) memcpy(mac_address, ifr.ifr_hwaddr.sa_data, 6);
-  char *mac_address_string = new char[40];
-  sprintf(mac_address_string, "%02X:%02X:%02X:%02X:%02X:%02X", mac_address[0], mac_address[1], mac_address[2],
-          mac_address[3], mac_address[4], mac_address[5]);
-  return std::string(mac_address_string) + "@" + hostAddress + "@" + hostName;
-}
-#endif
-
-/**
- * Splits a string into a vector of strings based on a delimiter.
- *
- * @param host_info The string to split.
- * @param delimiter The delimiter to split the string on.
- *
- * @returns A vector of strings.
- */
-std::vector<std::string> split_host_info(const std::string &host_info, const std::string &delimiter = "@") {
-  std::vector<std::string> tokens;
-  auto start = 0U;
-  auto end = host_info.find(delimiter);
-  while (end != std::string::npos) {
-    tokens.emplace_back(host_info.substr(start, end - start));
-    start = end + delimiter.length();
-    end = host_info.find(delimiter, start);
-  }
-  end = host_info.find("\n");
-  if (end != std::string::npos) {
-    tokens.emplace_back(host_info.substr(start, end - start));
-  } else {
-    tokens.emplace_back(host_info.substr(start));
-  }
-  return tokens;
-}
-
-static mdns_record_txt_t txtbuffer[128];
+static mdns_record_txt_t txtbuffer[128 * 2];
 
 int mDNS::openServiceSockets(int *sockets, int max_sockets) {
   // When receiving, each socket can receive data from all network interfaces
