@@ -308,6 +308,7 @@ static int query_callback(int sock, const struct sockaddr *from, size_t addrlen,
                  MDNS_STRING_FORMAT(txtbuffer[itxt].value));
 
         auto host_infos = std::string(txtbuffer[itxt].value.str);
+        host_infos = host_infos.substr(0,txtbuffer[itxt].value.length);
         std::vector<std::string> service_infos = split_string(host_infos);
         DeviceInfo res;
         if (service_infos.size() == 4 && host_ip == service_infos[2]) {
