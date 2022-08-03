@@ -458,6 +458,9 @@ void mDNS::runMainLoop() {
   service_record.address_ipv6 = has_ipv6_ ? service_address_ipv6_ : 0;
   service_record.port = port_;
 
+  struct timeval timeout;
+  timeout.tv_sec = 5;
+  timeout.tv_usec = 0;
   // This is a crude implementation that checks for incoming queries
   while (running_) {
     int nfds = 0;
@@ -468,7 +471,7 @@ void mDNS::runMainLoop() {
       FD_SET(sockets[isock], &readfs);
     }
 
-    if (select(nfds, &readfs, 0, 0, 0) >= 0) {
+    if (select(nfds, &readfs, 0, 0, &timeout) > 0) {
       for (int isock = 0; isock < num_sockets; ++isock) {
         if (FD_ISSET(sockets[isock], &readfs)) {
           mdns_socket_listen(sockets[isock], buffer.get(), capacity, service_callback, &service_record);
