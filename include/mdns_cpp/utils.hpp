@@ -26,7 +26,7 @@ std::string ipAddressToString(char *buffer, size_t capacity, const struct sockad
  *
  * @returns A vector of strings.
  */
-std::vector<std::string> split_string(const std::string &input_string, const std::regex &sep_regex = std::regex{"@"});
+std::vector<std::string> split_string(const std::string &input_string, const std::regex &sep_regex);
 
 #ifdef _WIN32
 

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
 
@@ -183,7 +184,7 @@ std::string getHostInfo() {
           mac_address[3], mac_address[4], mac_address[5]);
   return std::string(mac_address_string) + "@" + hostAddress + "@" + hostName;
 #else
-        return "";
+  return "";
 #endif
 }
 

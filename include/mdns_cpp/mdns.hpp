@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <iostream>
 #include <set>
@@ -19,18 +20,14 @@ struct DeviceInfo {
   std::string serviceName;
 
   bool operator<(const DeviceInfo &other) const { return (ip + mac) < (other.ip + other.mac); }
-
   bool operator==(const DeviceInfo &other) const { return (ip == other.ip && mac == other.mac); }
-
-  // overload operator<< to print the device info
-  friend std::ostream &operator<<(std::ostream &os, DeviceInfo const &device) {
-    os << "[ip: " << device.ip << "] [hostName: " << device.hostName << "] [mac: " << device.mac
-       << "] [service name:" << device.serviceName << "]";
-    return os;
-  }
 };
 
-inline std::set<DeviceInfo> discoveryResults;
+static inline std::ostream &operator<<(std::ostream &os, DeviceInfo const &device) {
+  os << "[ip: " << device.ip << "] [hostName: " << device.hostName << "] [mac: " << device.mac
+     << "] [service name:" << device.serviceName << "]";
+  return os;
+}
 
 class mDNS {
  public:
@@ -47,7 +44,7 @@ class mDNS {
 
   void executeQuery(const std::string &service);
 
-  std::set<DeviceInfo> executeQuery(std::string_view service);
+  std::set<DeviceInfo> executeDevicesQuery(const std::string &service);
 
   void executeDiscovery();
 
@@ -61,7 +58,7 @@ class mDNS {
   std::uint16_t port_{42424};
   std::string txt_record_{};
 
-  bool running_{false};
+  std::atomic<bool> running_{false};
 
   bool has_ipv4_{false};
   bool has_ipv6_{false};
